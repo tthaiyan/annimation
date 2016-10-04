@@ -1,19 +1,214 @@
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js" charset="utf-8"></script>
-
-<style>
-</style>
+<link rel="stylesheet" type="text/css" href="https://github.com/NickQiZhu/d3-cookbook/blob/master/css/styles.css"/>
+    <script type="text/javascript" <script src="https://d3js.org/d3.v3.min.js"></script>
 
 <body>
-  <h1> Animated Transitions </h1>
+<h1 font-family='Exo 2' align=center> Animated Transitions </h1>
 </body>
-
+<button id="button">Start All Over</button>
 <script>
-  console.log(d3); // test if d3 is loaded
+    var padding = {left:40, right:20, top:20, bottom:30};
+    var width = 900-padding.left-padding.right;
+    var height = 560-padding.top-padding.bottom;
+    var duration = 2000;
+    var x = d3.scale.ordinal();
+    var y = d3.scale.linear();
+    var delay = 1000;
 
-  d3.csv('fruit.csv', function(err, d) {
-    if(err) console.log(err);
-    // start here!
-    console.log(d);
-  });
+    var svg = d3.select("body")
+            .append("svg")
+            .attr("width", width+padding.left+padding.right)
+            .attr("height", height+padding.top+padding.bottom)
+            .append('g')
+            .attr('transform', 'translate(' + padding.left + ',' + padding.top + ')');
+			
+ 	var fruitColor = {
+            "Apple": "#FF0000",
+            "Pear": "#B8860B",
+            "Orange": "#FF4500",
+            "Cherry": "#DC143C",
+            "Blueberry": "#00008B",
+            "Banana": "#FFD700",
+            "Peach": "#FF69B4",
+            "Lemon": "#FFFF00",
+            "Watermelon": "#008000",
+            "Lime": "#32CD32",
+            "Mango": "#9ACD32",
+            "Grape": "#800080",
+            "Kiwi": "#7CFC00",
+            "Pineapple": "#EEE8AA",
+            "Date": "#8B0000"
+        };
+     var arc = d3.svg.arc();
+	dataInit();	
+
+function restart(){
+            svg.selectAll("g").remove();
+           dataInit();
+        }
+	
+function dataInit(){
+    d3.csv('https://raw.githubusercontent.com/tthaiyan/03-Animation/master/fruit.csv?token=AVJ9sBQKsvjX5GeZoctFiyeX-zVpB6T5ks5X9-tuwA%3D%3D', 
+	function(err, data) {
+	
+        if(err) console.log(err);
+        W = x.domain(data.map(function(d){
+            return d.Fruit;
+        }))
+                .rangeRoundBands([0,width], .2);
+
+
+        h = y.range([0,height-padding.bottom-padding.top])
+                .domain([0,d3.max(data,function(d){return +d.Count})]);
+
+        bubbleChart(data);
+    });
+}
+
+    function bubbleChart(data){
+	    var pie = d3.layout.pie()
+            .value(function(d){
+                return d.Count;
+            });
+   
+        var bubble = d3.layout.pack()
+                .sort(null)
+                .size([400,400])
+                .padding(1.5);
+        var bdata = pie(data).map(function(d){ d.value = +d.data.Count; return d; });
+        var nodes = bubble.nodes({children:bdata}).filter(function(d) { return !d.children; });
+        var g = svg.selectAll('.default')
+                .data(nodes)
+                .enter()
+                .append('g')
+                .attr('class','default')
+		 g.append("circle")
+                .attr("r",0)
+                .attr("cx",function(d){
+                    return 2*d.x-50;
+                })
+                .attr("cy",function(d){
+                    return d.y;
+                })
+                 .attr('fill', function(d) { return fruitColor[d.data.Fruit]; } )
+                .transition()
+                .delay(function(d,i){
+                    return i*100;
+                })
+                .duration(duration/3)
+                .attr("r",function(d){
+                    return d.r;
+                })
+        g.append("text")
+                .attr("x", function(d){ return 2*d.x-70; })
+                .attr("y", function(d){ return d.y + 5; })
+                .attr("text-anchor", "middle")
+                .text(function(d){ return d.data.Fruit; })
+                .style("opacity",0)
+                .transition()
+                .delay(function(d,i){
+                    return 0.5*duration+i*50;
+                })
+                .duration(duration/2)
+                .style("opacity",1)
+     	setTimeout(barChart, duration+2*delay);
+		 
+    }
+
+    function barChart(){
+        var g = svg.selectAll(".default")
+        g.transition().duration(duration/2).tween("arc",Tween);
+        function Tween(data,i){
+            var canvas = d3.select(this);
+            var circle = canvas.select("circle");
+            var rect = canvas.append("rect")
+          .attr('fill', function(d) { return fruitColor[d.data.Fruit]; } )
+            var text = canvas.select("text");
+            var cx = circle.attr("cx");
+            var cy = circle.attr("cy");
+
+            circle.transition().duration(duration/4)
+                    .attr("r",0).remove();
+            rect.attr("x", cx-20)
+                    .attr("y", cy)
+                    .attr('width', 0)
+                    .attr('height',0)
+                    .transition()
+                    .duration(duration)
+                    .attr("x", function(d){
+                        return x(d.data.Fruit)+15;
+                    })
+                    .attr("y", function(d){
+                        return height-y(d.data.Count);
+                    })
+                    .attr("width", x.rangeBand())
+                    .attr("height", function(d) {
+                        return y(d.data.Count);
+                    });
+            text.transition()
+				.duration(duration*1.5)
+                .attr("x", function(d){ return x(d.data.Fruit)+22; })
+                .attr("y", function(d){ return (height+20); })
+                .remove();
+            canvas.append("text")
+                    .transition().delay(4.5*delay)
+                    .attr("transform", function(d){
+                        return "translate(" + (x(d.data.Fruit)+x.rangeBand()) + "," + (height+20) + ")";
+                    }).text(function(d) {
+                        return d.data.Fruit;
+                    });
+        }
+
+       g.append("path")
+                .attr('fill', function(d) { return fruitColor[d.data.Fruit]; } )
+        setTimeout(pieChart, duration + 1.8*delay);
+		
+    }
+
+
+    function pieChart(){
+        var g = svg.selectAll(".default");
+
+        g.selectAll("rect")
+                .remove();
+
+        g.selectAll("path")
+                .transition()
+                .duration(duration+delay)
+                .tween("arc", arcTween);
+
+        function arcTween(d) {
+            var path = d3.select(this),
+                    text = d3.select(this.parentNode).select("text"),
+                    x0 = x(d.data.Fruit),
+                    y0 = y(d.data.Count); //initial height
+
+            return function(t) {
+                var r = height / 2 / Math.min(1, t + 1e-3);
+                var a = Math.cos(t * Math.PI / 2);
+                var xx = (-r + (a) * (x0 + x.rangeBand()) + 0.7*(1 - a) * (width + height / 2));
+
+                var yy = ((a) * height + (1 - a) * height / 2);
+                var f = {
+                    innerRadius: (r - x.rangeBand() / (2 - a)) * a,
+                    outerRadius: r,
+                    startAngle: a * (Math.PI / 2 - y0 / r) + (1 - a) * d.startAngle,
+                    endAngle: a * (Math.PI / 2) + (1 - a) * d.endAngle
+                };
+                path.attr("transform", "translate(" + xx + "," + yy + ")");
+                path.attr("d", arc(f));
+                text.attr("transform", "translate(" + arc.centroid(f) + ")translate(" + xx + "," + yy + ")rotate(" + ((f.startAngle + f.endAngle) / 2 + 3 * Math.PI / 2) * 180 / Math.PI + ")");
+            };
+        }
+		
+	 }
+	 d3.select("button")
+                .on("click", function() {
+                 	restart();
+
+                })
 
 </script>
+ 
+
+
+
